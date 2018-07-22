@@ -20,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         FirebaseApp.configure()
         
-        let fbdb = Firestore.firestore()
+//        let fbdb = Firestore.firestore()
         
         return true
     }

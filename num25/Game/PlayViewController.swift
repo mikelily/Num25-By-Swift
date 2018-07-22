@@ -8,13 +8,10 @@
 
 import UIKit
 import Firebase
-//import FirebaseFirestore
-//import FirebaseAuth
 
 class PlayViewController: UIViewController {
     var playTableVC: PlayTable?
     var stateViewVC: StateView?
-    var scoreTableVC: ScoreTableViewController?
     
     @IBOutlet weak var leadingConstraint: NSLayoutConstraint!
     @IBOutlet weak var StartBtn: UIButton!
@@ -23,10 +20,7 @@ class PlayViewController: UIViewController {
     var sec = 0
     var name: String = "UnKnown"
     
-    var db :SQLiteConnect?
-    
     @IBAction func Start(_ sender: Any) {
-//        leadingConstraint.constant = 200
         StartBtn.isHidden = true
         stateViewVC?.passBtn.isEnabled = true
         stateViewVC?.restartBtn.isEnabled = true
@@ -39,7 +33,7 @@ class PlayViewController: UIViewController {
     func startTimer () {
         if timerTest == nil {
             timerTest =  Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { (timer) in
-                print("\(self.sec) 豪秒")
+//                print("\(self.sec) 豪秒")
                 self.sec = self.sec + 1
                 if self.sec%100/10 == 0 {
                     self.stateViewVC?.timerLabel.text = "\(self.sec/100):0\(self.sec%100)"
@@ -69,27 +63,6 @@ class PlayViewController: UIViewController {
         PassBtn.isHidden = true
         stateViewVC?.passBtn.isEnabled = false
         stateViewVC?.restartBtn.isEnabled = false
-        
-        // 資料庫檔案的路徑
-        let urls = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let sqlitePath = urls[urls.count-1].absoluteString + "sqlite3.db"
-        
-        // 印出儲存檔案的位置
-//        print(sqlitePath)
-        
-        // SQLite 資料庫
-        db = SQLiteConnect(path: sqlitePath)
-        
-        if let mydb = db {
-            
-            // create table
-            let _ = mydb.createTable("score", columnsInfo: [
-                "id integer primary key autoincrement",
-                "name text",
-                "score text"])
-        }
-        
-        
     }
 
     override func didReceiveMemoryWarning() {
@@ -106,15 +79,11 @@ class PlayViewController: UIViewController {
             stateViewVC = vc2
             stateViewVC?.delegate = self
         }
-        if let vc3 = segue.destination as? ScoreTableViewController{
-            scoreTableVC = vc3
-        }
     }
 }
 
 extension PlayViewController: PlayDelegate {
     func addNextNum(_ nextNum: Int) {
-//        print("XX")
         stateViewVC?.upNextNum(nextNum)
     }
     func passGame() {
@@ -122,8 +91,6 @@ extension PlayViewController: PlayDelegate {
         passTimer()
     }
     func restartGame() {
-//        playTableVC?.randomList()
-//        func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath)
         playTableVC?.viewDidLoad()
         playTableVC?.nextNum = 1
         stateViewVC?.upNextNum(1)
@@ -133,6 +100,27 @@ extension PlayViewController: PlayDelegate {
         sec = 0
         passTimer()
     }
+    
+    func updateFireBase(field:String, value:Int){
+        let fbdb = Firestore.firestore()
+        let settings = fbdb.settings
+        settings.areTimestampsInSnapshotsEnabled = true
+        fbdb.settings = settings
+        
+        let ref = fbdb.collection("userState").document(Auth.auth().currentUser!.uid)
+        
+        // Set the "capital" field of the city 'DC'
+        ref.updateData([
+            "\(field)": value
+        ]) { err in
+            if let err = err {
+                print("Error updating document: \(err)")
+            } else {
+                print("Document successfully updated")
+            }
+        }
+    }
+    
     func gameEnd() {
         passTimer()
         stateViewVC?.passBtn.isEnabled = false
@@ -144,92 +132,64 @@ extension PlayViewController: PlayDelegate {
         let settings = fbdb.settings
         settings.areTimestampsInSnapshotsEnabled = true
         fbdb.settings = settings
+//        let 
+        
+        let docRef = fbdb.collection("userState").document(Auth.auth().currentUser!.uid)
+        
+        docRef.getDocument { (document, error) in
+            if let document = document, document.exists {
+                if let name = document.data()!["name"] as? String{
+                    self.name = name
+                }
+                if var avgScore = document.data()!["avgScore"] as? Int{
+                    if let games = document.data()!["games"] as? Int{
+                        avgScore = (avgScore * games + self.sec)/(games+1)
+                        self.updateFireBase(field: "games", value: games + 1)
+                        self.updateFireBase(field: "avgScore", value: avgScore)
+                    }
+                }else{
+                    self.updateFireBase(field: "avgScore",value: self.sec)
+                    self.updateFireBase(field: "games", value: 1)
+                }
+                if var avgScore = document.data()!["avgScore"] as? Int{
+                    if let games = document.data()!["games"] as? Int{
+                        avgScore = (avgScore * games + self.sec)/(games+1)
+                        self.updateFireBase(field: "games", value: games + 1)
+                        self.updateFireBase(field: "avgScore", value: avgScore)
+                    }
+                }else{
+                    self.updateFireBase(field: "avgScore",value: self.sec)
+                    self.updateFireBase(field: "games", value: 1)
+                }
+                if let bestScore = document.data()!["bestScore"] as? Int{
+                    if bestScore > self.sec{
+                        self.updateFireBase(field: "bestScore",value: self.sec)
+                    }
+                }else{
+                    self.updateFireBase(field: "bestScore",value: self.sec)
+                }
+            }
+            else {
+                print("Document does not exist")
+            }
+        }
         
         let now:Date = Date()
         let timeInterval:TimeInterval = now.timeIntervalSince1970
         let time:Int = Int(timeInterval)
-        ref = fbdb.collection(Auth.auth().currentUser!.uid).addDocument(data: [
+        ref = fbdb.collection("scores").addDocument(data: [
             "userID": Auth.auth().currentUser!.uid,
-            "score": sec,
-            "time": time
-        ]) { err in
-            if let err = err {
-                print("Error adding document: \(err)")
-            } else {
-                print("Document added with ID: \(ref!.documentID)")
-            }
-        }
-//        ref = fbdb.collection("users").addDocument(data: [
-//            "userID": Auth.auth().currentUser!.uid,
-//            "score": sec,
-//            "time": time
-//        ]) { err in
-//            if let err = err {
-//                print("Error adding document: \(err)")
-//            } else {
-//                print("Document added with ID: \(ref!.documentID)")
-//            }
-//        }
-        
-        
-        //enter score to db
-        
-        // 建立一個提示框
-        var score: String = ""
-        if sec%100/10 == 0 {
-            score = "\(sec/100):0\(sec%100)"
-        }else {
-            score = "\(sec/100):\(sec%100)"
-        }
-        let alertController = UIAlertController(
-            title: "您的成績為:",
-            message: score,
-            preferredStyle: .alert)
-        
-        // 建立一個輸入框
-        alertController.addTextField {
-            (textField: UITextField!) -> Void in
-            textField.placeholder = "Type Your Name Here"
-        }
-        
-        // 建立[取消]按鈕
-        let cancelAction = UIAlertAction(
-            title: "取消",
-            style: .cancel,
-            handler: nil)
-        alertController.addAction(cancelAction)
-        
-        // 建立[登入]按鈕
-        let okAction = UIAlertAction(
-            title: "輸入",
-            style: UIAlertActionStyle.default) {
-                (action: UIAlertAction!) -> Void in
-                let acc =
-                    (alertController.textFields?.first)!
-                        as UITextField
-                self.name = acc.text!
-                
-                // 資料庫檔案的路徑
-                let urls = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-                let sqlitePath = urls[urls.count-1].absoluteString + "sqlite3.db"
-                
-                // SQLite 資料庫
-                self.db = SQLiteConnect(path: sqlitePath)
-                
-                // insert DB
-                if let mydb = self.db {
-                    let _ = mydb.insert("score", rowInfo: ["name":"'\(self.name)'","score":"'\(score)'"])
-                    print("insert")
+            "score": self.sec,
+            "time": time,
+            "name": self.name
+            ]) { err in
+                if let err = err {
+                    print("Error adding document: \(err)")
+                } else {
+                    print("Document added with ID: \(ref!.documentID)")
                 }
-                self.scoreTableVC?.viewDidLoad()
+            }
+        
         }
-        alertController.addAction(okAction)
-        
-        // 顯示提示框
-        self.present(
-            alertController,
-            animated: true,
-            completion: nil)
-        
     }
-}
+

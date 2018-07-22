@@ -10,6 +10,12 @@ import UIKit
 import Firebase
 
 class FirebaseScoreTableViewController: UITableViewController {
+    
+    var scores: [Int] = []
+    var names: [String] = []
+    var games: [Int] = []
+    var avgScores: [Int] = []
+    var timeStamps: [Int] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -19,20 +25,78 @@ class FirebaseScoreTableViewController: UITableViewController {
         settings.areTimestampsInSnapshotsEnabled = true
         fbdb.settings = settings
         
-        fbdb.collection("user").getDocuments() { (querySnapshot, err) in
+        let ref = fbdb.collection("scores").order(by: "score").limit(to: 10)
+        
+        ref.addSnapshotListener { (doc, err) in
+            self.scores = []
             if let err = err {
                 print("Error getting documents: \(err)")
             } else {
-                for document in querySnapshot!.documents {
-                    print("\(document.documentID) => \(document.data())")
+                for document in doc!.documents {
+                    if let score = document.data()["score"] as? Int{
+                        self.scores.append(score)
+                    }
+                    if let time = document.data()["time"] as? Int{
+                        self.timeStamps.append(time)
+                    }
+                    if let uid = document.data()["uid"] as? String{
+                        self.names.append(self.getName(uid: uid))
+                        self.avgScores.append(self.getStateIntValue(uid: uid, key: "avgScore"))
+                        self.games.append(self.getStateIntValue(uid: uid, key: "games"))
+                    }
                 }
             }
+            self.tableView.reloadData()
         }
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem
+    }
+    
+    func getStateIntValue(uid: String,key: String) -> Int {
+        let fbdb = Firestore.firestore()
+        let settings = fbdb.settings
+        settings.areTimestampsInSnapshotsEnabled = true
+        fbdb.settings = settings
+        var forReturn: Int = 0
+        let docRef = fbdb.collection("userState").document(Auth.auth().currentUser!.uid)
+        docRef.addSnapshotListener { (document, erroe) in
+            if let document = document, document.exists {
+                
+                if key == "games"{
+                    if let games = document.data()!["games"] as? Int{
+                        forReturn = games
+                    }
+                }
+                if key == "avgScore"{
+                    if let avgScore = document.data()!["avgScore"] as? Int{
+                        forReturn = avgScore
+                    }
+                }
+            } else {
+                print("Document does not exist")
+            }
+        }
+        
+        return forReturn
+    }
+    
+    func getName(uid: String) -> String {
+        let fbdb = Firestore.firestore()
+        let settings = fbdb.settings
+        settings.areTimestampsInSnapshotsEnabled = true
+        fbdb.settings = settings
+        
+        var forReturn: String = ""
+        let docRef = fbdb.collection("userState").document(Auth.auth().currentUser!.uid)
+        docRef.addSnapshotListener { (document, erroe) in
+            if let document = document, document.exists {
+                if let name = document.data()!["name"] as? String{
+                    forReturn = name
+                }
+                
+            } else {
+                print("Document does not exist")
+            }
+        }
+        return forReturn
     }
 
     override func didReceiveMemoryWarning() {
@@ -44,23 +108,32 @@ class FirebaseScoreTableViewController: UITableViewController {
 
     override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Incomplete implementation, return the number of sections
-        return 0
+        return 1
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return 0
+        return self.scores.count
     }
 
-    /*
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
-
-        // Configure the cell...
-
+        let cell = tableView.dequeueReusableCell(withIdentifier: "LadderCell", for: indexPath) as! LadderCell
+        
+        cell.cellScoreLabel.text = String(scores[indexPath.row])
+        cell.cellNameLabel.text = names[indexPath.row]
+        
+        let timeInterval:TimeInterval = TimeInterval(timeStamps[indexPath.row])
+        let date = Date(timeIntervalSince1970: timeInterval)
+        
+        let dformatter = DateFormatter()
+        dformatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        
+        cell.cellTimeLabel.text = dformatter.string(from: date)
+        
         return cell
     }
-    */
+ 
 
     /*
     // Override to support conditional editing of the table view.

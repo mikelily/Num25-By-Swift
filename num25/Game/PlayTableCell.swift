@@ -11,7 +11,7 @@ import UIKit
 class PlayTableCell: UICollectionViewCell {
     var imageView:UIImageView!
     var titleLabel:UILabel!
-    var button:UIButton!
+//    var button:UIButton!
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -23,9 +23,9 @@ class PlayTableCell: UICollectionViewCell {
         imageView = UIImageView(frame: CGRect(x: 0, y: 0, width: w/3 - 10.0, height: w/3 - 10.0))
         self.addSubview(imageView)
         
-        //建立一個 UIButton
-        button = UIButton(frame: CGRect(x: 0, y: 0, width: w/5 - 10.0, height: w/5 - 10.0))
-        self.addSubview(imageView)
+//        //建立一個 UIButton
+//        button = UIButton(frame: CGRect(x: 0, y: 0, width: w/5 - 10.0, height: w/5 - 10.0))
+//        self.addSubview(imageView)
         
         
         // 建立一個 UILabel

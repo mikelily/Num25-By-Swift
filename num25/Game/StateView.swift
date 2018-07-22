@@ -39,7 +39,6 @@ class StateView: UIViewController {
     }
     
     func upNextNum(_ nextNum: Int) {
-//        print("OO")
         nextNumLabel.text = String(nextNum)
     }
 

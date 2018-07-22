@@ -31,21 +31,21 @@ class SignUpViewController: UIViewController {
                     print("註冊成功")
                     //Goes to the Setup page which lets the user take a photo for their profile picture and also chose a username
                     
-                    var ref: DocumentReference? = nil
-                    
                     let fbdb = Firestore.firestore()
                     let settings = fbdb.settings
                     settings.areTimestampsInSnapshotsEnabled = true
                     fbdb.settings = settings
                     
-                    ref = fbdb.collection("uidAndName").addDocument(data: [
-                        "userID": Auth.auth().currentUser!.uid,
-                        "userNickName": self.nameTextField.text!,
+                    fbdb.collection("userState").document(Auth.auth().currentUser!.uid).setData([
+                        "name": self.nameTextField.text!,
+                        "games": 0,
+                        "win": 0,
+                        "lose":0
                     ]) { err in
                         if let err = err {
-                            print("Error adding document: \(err)")
+                            print("Error writing document: \(err)")
                         } else {
-                            print("Document added with ID: \(ref!.documentID)")
+                            print("Document successfully written!")
                         }
                     }
                     
